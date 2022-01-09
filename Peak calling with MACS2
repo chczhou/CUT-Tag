@@ -1,1 +1,5 @@
+For H3K4me3 and H3K27ac
+macs2 callpeak -t Filename.bam -q 0.05 -g 2.716e9 -f BAM -n Filename_macs2 -B
 
+For H3K27me3 and H3K9me3
+macs2 callpeak -t Filename.bam -q 0.05 -g 2.716e9 -f BAM -n Filename_macs2 -B --broad
