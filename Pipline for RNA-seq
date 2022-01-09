@@ -1,1 +1,52 @@
+#{$1} = reads prefix
 
+if [ ! -f Trimmed_reads/$1.trimmed.fastq.gz ]
+then
+	java -jar /share/apps/Trimmomatic-0.33/trimmomatic-0.33.jar SE \
+	-phred33 Raw_reads/$1.fq.gz Trimmed_reads/$1.trimmed.fastq.gz \
+	ILLUMINACLIP:/share/apps/Trimmomatic-0.33/adapters/TruSeq3-SE.fa:2:30:10 \
+	LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+fi
+
+if [ ! -f STAR_output/$1.aligned.bam ]
+then
+
+        STAR --genomeDir Genomefile \
+	      --readFilesCommand zcat \
+        --readFilesIn Trimmed_reads/$1.trimmed.fastq.gz \
+        --runThreadN 12 --genomeLoad NoSharedMemory \
+        --outFilterMultimapNmax 20 --alignSJoverhangMin 8 \
+        --alignSJDBoverhangMin 1 --outFilterMismatchNmax 999 \
+        --outFilterMismatchNoverReadLmax 0.04 \
+        --alignIntronMin 20 --alignIntronMax 1000000 --alignMatesGapMax 1000000 \
+        --outSAMunmapped None --outFilterType BySJout \
+        --outFilterScoreMinOverLread 0.85 \
+        --seedSearchStartLmax 30 --outSAMtype BAM SortedByCoordinate \
+        --limitBAMsortRAM 60000000000 --quantMode TranscriptomeSAM \
+        --outFileNamePrefix STAR_output/$1.
+
+        mv STAR_output/$1.Aligned.sortedByCoord.out.bam STAR_output/$1.aligned.bam
+fi
+
+if [ ! -f Aligned_reads/$1.filtered.bam ]
+then
+	#Extract uniquely aligned reads
+	samtools view -q 255 -b STAR_output/$1.aligned.bam > STAR_output/$1.unique.bam
+	#Filter for MAPQ > 5
+	samtools view -b -q 5 STAR_output/$1.unique.bam > Aligned_reads/$1.filtered.bam
+fi
+
+if [ ! -f Counts/${1}_htseq_counts.txt ]
+then
+	htseq-count \
+	-i gene_id \
+	--additional-attr=gene_name \
+	--format=bam \
+	--order=pos \
+	--type=exon \
+	--stranded=yes \
+	--mode=intersection-nonempty \
+	Aligned_reads/$1.filtered.bam \
+	Genomefile.gtf \
+	> Counts/${1}_htseq_counts.txt
+fi
