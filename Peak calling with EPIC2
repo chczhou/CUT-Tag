@@ -1,1 +1,17 @@
+For H3K4me3, H3K27ac, and ATAC-seq
+epic2 --treatment ~/Filename.bam \
+      --effective-genome-fraction 0.7 \
+      --chromsizes ~/genomes/cattle/ARS-UCD1.2/Bos_taurus.ARS-UCD1.2.dna.toplevel.fa.chrom_sizes.txt \
+      -bin 50 \
+      -g 1 \
+      -e 1 > Filename.epic2.txt
+sed '1d' Filename.epic2.txt | awk -v OFS="\t" '{print $1,$2,$3,"peak_"NR,$4,"."}' > Filename.epic2_peaks.bed
 
+For H3K27me3 and H3K9me3
+epic2 --treatment ~/Filename.bam \
+      --effective-genome-fraction 0.7 \
+      --chromsizes ~/genomes/cattle/ARS-UCD1.2/Bos_taurus.ARS-UCD1.2.dna.toplevel.fa.chrom_sizes.txt \
+      -bin 200 \
+      -g 5 \
+      -e 1 > Filename.epic2.txt
+sed '1d' Filename.epic2.txt | awk -v OFS="\t" '{print $1,$2,$3,"peak_"NR,$4,"."}' > Filename.epic2_peaks.bed
