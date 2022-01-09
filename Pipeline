@@ -1,1 +1,72 @@
+ASSEMBLY=~/genomes/cattle/ARS-UCD1.2/Bos_taurus.ARS-UCD1.2.dna.toplevel.fa
+SAMPLE=$1
+MARK=$2
+
+# Trim reads
+if [ ! -f Trimmed_reads/CT_${MARK}_${SAMPLE}_*_val_2.fq.gz ]
+then
+	trim_galore \
+		-q 20 \
+		-stringency 1 \
+		--paired \
+		--retain_unpaired \
+		--length 10 \
+		-o Trimmed_reads/ \
+		Raw_reads/CT_${MARK}_${SAMPLE}_*R1_001.fastq.gz \
+		Raw_reads/CT_${MARK}_${SAMPLE}_*R2_001.fastq.gz
+else
+	echo "Trimmed read files already created."
+fi
+
+# Alignment: bwa mem
+if [ ! -f Bwa_output/${SAMPLE}_${MARK}.sorted.bam ]
+then
+	bwa mem \
+		-t $SLURM_NTASKS \
+		$ASSEMBLY \
+		Trimmed_reads/CT_${MARK}_${SAMPLE}_*_val_1.fq.gz \
+		Trimmed_reads/CT_${MARK}_${SAMPLE}_*_val_2.fq.gz | \
+		samtools view -bS - | \
+		samtools sort - > Bwa_output/${SAMPLE}_${MARK}.sorted.bam
+	samtools index Bwa_output/${SAMPLE}_${MARK}.sorted.bam
+	samtools flagstat Bwa_output/${SAMPLE}_${MARK}.sorted.bam > Metrics/${SAMPLE}_${MARK}.sorted.flagstat.txt
+else
+	echo "Alignment file already created."
+fi
+
+# Remove PCR duplicates
+if [ ! -f Bwa_output/${SAMPLE}_${MARK}.sorted.dup-rm.bam ]
+then
+	picard-tools MarkDuplicates \
+		INPUT=Bwa_output/${SAMPLE}_${MARK}.sorted.bam \
+		OUTPUT=Bwa_output/${SAMPLE}_${MARK}.sorted.dup-rm.bam \
+		METRICS_FILE=Bwa_output/${SAMPLE}_${MARK}.output.dup_metrics \
+		REMOVE_DUPLICATES=true \
+		ASSUME_SORTED=true \
+		VALIDATION_STRINGENCY=SILENT
+	samtools index Bwa_output/${SAMPLE}_${MARK}.sorted.dup-rm.bam
+	samtools flagstat Bwa_output/${SAMPLE}_${MARK}.sorted.dup-rm.bam > Metrics/${SAMPLE}_${MARK}.sorted.dup-rm.flagstat.txt
+else
+	echo "PCR duplicates already removed."
+fi
+
+# Remove low quality alignments
+if [ ! -f Aligned_reads/${SAMPLE}_${MARK}.bam ]
+then
+	samtools view -b -q 5 Bwa_output/${SAMPLE}_${MARK}.sorted.dup-rm.bam > Aligned_reads/${SAMPLE}_${MARK}.bam
+        samtools index Aligned_reads/${SAMPLE}_${MARK}.bam
+        samtools flagstat Aligned_reads/${SAMPLE}_${MARK}.bam > Metrics/${SAMPLE}_${MARK}.final.flagstat.txt
+else
+	echo "Low quality alignments already removed."
+fi
+
+# Generate bigwig file for Deeptools
+if [ ! -f Deeptools/${SAMPLE}_${MARK}.bam.rpkm.norm.bw ]
+then
+	bamCoverage -b Aligned_reads/${SAMPLE}_${MARK}.bam \
+		-o Deeptools/${SAMPLE}_${MARK}.bw \
+		-of=bigwig --normalizeUsing CPM
+else
+	echo "BigWig file already created."
+fi
 
