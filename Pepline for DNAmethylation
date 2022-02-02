@@ -1,1 +1,11 @@
+bismark_genome_preparation --bowtie2 --verbose Cow_genomefile
 
+bismark --bowtie2 --multicor 4 --pbat Cow_genomefile -1 Rawfile_1.fastq.gz -2 Rawfile_2.fastq.gz
+
+bismark_methylation_extractor -s \
+        --multicore 6 \
+        --gzip \
+        --bedGraph \
+	      --cytosine_report \
+	      --genome_folder ARS-UCD1.2.dna.toplevel.fa \
+	      Input.bam
